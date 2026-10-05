@@ -1,12 +1,25 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rajbongsh Family Heritage</title>
+<title>Family Heritage</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css"></head><body>
-<header><h1>Rajbongsh Family Heritage</h1><p>Tap a person to open their children. Tap again to fold them away.</p></header>
-<div class="bar"><button class="alt" id="all">Show everyone</button><button class="alt" id="reset">Start over</button></div>
+<header><h1>Family Heritage</h1><p>Tap a person to open their children. Tap again to fold them away.</p></header>
+<div class="bar"><button id="addb">➕ Add my branch</button><button class="alt" id="all">Show everyone</button><button class="alt" id="reset">Start over</button></div>
 <div id="wrap"><div id="stage"><svg id="svg"></svg></div></div>
 <div id="info" class="box" hidden></div>
+<div id="add" class="box" hidden>
+<div style="font-size:20px;font-weight:700">Add my branch</div>
+<p class="nt" style="font-size:16px">Your entry appears on the tree after the family admin has checked it.</p>
+<label>Your name<input type="text" id="aname"></label>
+<label>I am the<select id="arel"><option value="child">child of</option><option value="spouse">husband or wife of</option></select></label>
+<label>this person, who is already on the tree<select id="aanc"></select></label>
+<label>A short note (optional)<input type="text" id="anote"></label>
+<label>My husband or wife (optional)<input type="text" id="aspo"></label>
+<label>My children, one name per line (optional)<textarea id="akids" rows="3"></textarea></label>
+<label>Your phone or email, seen only by the admin (optional)<input type="text" id="acon"></label>
+<label>Photo (optional, only if you agree to show it)<input type="file" id="aph" accept="image/*"></label>
+<input type="text" id="aweb" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+<div class="row"><button id="asend">Send for review</button><button class="alt" id="acancel">Close</button></div><div id="amsg"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="tree.js"></script>
 <script>
@@ -52,6 +65,25 @@ function info(p){
   const c=document.createElement('div');c.className='chips';
   l.forEach(x=>{const k=document.createElement('button');k.className='alt';k.textContent=x.name;k.onclick=()=>reveal(x.id);c.appendChild(k)});
   b.append(g,c)})}
+let aphoto=null;
+$('addb').onclick=()=>{const o=$('aanc');o.innerHTML='';
+ [...P].sort((a,b)=>a.name.localeCompare(b.name)).forEach(x=>{const e=document.createElement('option');e.value=x.id;e.textContent=x.name;o.appendChild(e)});
+ $('add').hidden=false;$('add').scrollIntoView({behavior:'smooth'})};
+$('acancel').onclick=()=>{$('add').hidden=true};
+$('aph').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=160;
+  const m=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,160,160);
+  aphoto=c.toDataURL('image/jpeg',.8)};im.src=r.result};r.readAsDataURL(f)};
+$('asend').onclick=async()=>{
+ const m=$('amsg');if(!$('aname').value.trim()){m.textContent='Please enter your name.';return}
+ m.textContent='Sending…';
+ try{const r=await fetch('/api/tree',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({submit:{
+  name:$('aname').value,rel:$('arel').value,anchor:$('aanc').value,note:$('anote').value,spouse:$('aspo').value,
+  children:$('akids').value.split('\n'),contact:$('acon').value,photo:aphoto,website:$('aweb').value}})});
+  if(r.ok){m.textContent='Thank you! Your branch will appear after it has been reviewed.';
+   ['aname','anote','aspo','akids','acon','aph'].forEach(k=>$(k).value='');aphoto=null}
+  else m.textContent=(await r.text())||'Could not send. Please try again.'}
+ catch(e){m.textContent='Could not reach the server. Please try again.'}};
 $('all').onclick=()=>{const b=visible();P.forEach(p=>ex.add(p.id));go(b)};
 $('reset').onclick=()=>{ex=new Set();sel=null;$('info').hidden=true;draw(true)};
 fetch('/api/tree').then(r=>r.json()).then(d=>{if(d&&d.people&&d.people.length)P=d.people}).catch(()=>{}).finally(()=>draw(true));

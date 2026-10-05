@@ -15,6 +15,7 @@
 <div id="app" hidden>
 <div class="bar"><button id="replay">▶ Replay</button><a href="index.html"><button class="alt" type="button">Open display page</button></a><button class="alt" id="out">Log out</button></div>
 <div id="wrap"><div id="stage"><svg id="svg"></svg></div></div>
+<div id="pend" class="box" hidden><div style="font-size:20px;font-weight:700">Waiting for approval</div><div id="plist"></div></div>
 <details id="panel" class="box"><summary id="ptitle">Add a person</summary>
 <label>Name<input type="text" id="name" placeholder="Full name"></label>
 <label>Note (year, place, role)<input type="text" id="note"></label>
@@ -48,7 +49,7 @@ async function start(){
  $('login').hidden=true;$('app').hidden=false;
  try{const d=await (await fetch('/api/tree')).json();P=d.people&&d.people.length?d.people:JSON.parse(JSON.stringify(Tree.SEED))}
  catch(e){P=JSON.parse(JSON.stringify(Tree.SEED))}
- draw(true);
+ draw(true);loadPending();
 }
 function draw(a){fillSel();Tree.render(stage,svg,P,{anim:a,sel,onClick:edit})}
 async function persist(){
@@ -98,6 +99,30 @@ $('rs').onclick=()=>{
  armRs=false;$('rs').textContent='Reset to starter family map';P=JSON.parse(JSON.stringify(Tree.SEED));clearForm();draw(true);persist()};
 $('replay').onclick=()=>draw(true);
 $('out').onclick=logout;
+async function loadPending(){
+ try{const d=await (await api({listPending:true})).json();const l=d.pending||[];
+  $('pend').hidden=!l.length;const box=$('plist');box.textContent='';
+  l.forEach(e=>{const a=by(e.anchor),d=document.createElement('div');d.className='grp';d.style.borderTop='1px solid var(--line)';d.style.paddingTop='8px';
+   const t=document.createElement('div');t.style.color='var(--ink)';t.style.fontSize='18px';
+   t.textContent=e.name+(e.note?' ('+e.note+')':'')+' — '+(e.rel==='child'?'child of ':'husband or wife of ')+(a?a.name:'(person not found)');
+   const x=document.createElement('div');
+   x.textContent=[e.spouse&&'Husband or wife: '+e.spouse,e.children&&e.children.length&&'Children: '+e.children.join(', '),e.contact&&'Contact: '+e.contact].filter(Boolean).join('  •  ');
+   const r=document.createElement('div');r.className='row';
+   const ok=document.createElement('button');ok.textContent='Approve';ok.onclick=()=>approve(e);
+   const no=document.createElement('button');no.className='alt';no.textContent='Reject';no.onclick=async()=>{await api({removePending:e.sid});loadPending()};
+   r.append(ok,no);d.append(t,x,r);box.appendChild(d)})}
+ catch(e){}
+}
+async function approve(e){
+ const a=by(e.anchor);if(!a){msg('That person is no longer on the tree. Reject this entry.');return}
+ if(e.rel==='spouse'&&a.sp&&by(a.sp)){msg(a.name+' already has a husband or wife. Reject or fix this entry.');return}
+ const uid=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+ const me={id:uid(),name:e.name,note:e.note||''};if(e.photo)me.photo=e.photo;
+ if(e.rel==='child')me.par=a.id;else{me.sp=a.id;a.sp=me.id}
+ P.push(me);
+ if(e.spouse&&e.rel==='child'){const s={id:uid(),name:e.spouse,sp:me.id};me.sp=s.id;P.push(s)}
+ (e.children||[]).forEach(n=>P.push({id:uid(),name:n,par:me.id}));
+ draw(false);await persist();await api({removePending:e.sid});loadPending()}
 $('go').onclick=login;$('pw').onkeydown=e=>{if(e.key==='Enter')login()};
 if(pw)login();
 </script></body></html>
