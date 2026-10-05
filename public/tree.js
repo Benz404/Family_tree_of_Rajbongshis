@@ -55,7 +55,7 @@ function render(stage,svg,P,o={}){
    const av=document.createElement('div');av.className='av';
    if(p.photo){const im=document.createElement('img');im.src=p.photo;im.alt='';av.appendChild(im)}else av.textContent=(p.name||'?')[0].toUpperCase();
    const nm=document.createElement('div');nm.className='nm';nm.textContent=p.name;
-   const nt=document.createElement('div');nt.className='nt';nt.textContent=p.place?'📍 '+p.place:(p.note||'');
+   const nt=document.createElement('div');nt.className='nt';const pl=place(p);nt.textContent=pl?'📍 '+pl:(p.note||'');
    c.append(av,nm,nt);const bt=o.badge&&o.badge(p);if(bt){const e=document.createElement('div');e.className='bd';e.textContent=bt;c.appendChild(e)}
    c.onmouseenter=()=>gsap.to(c,{y:-6,scale:1.05,duration:.25});
    c.onmouseleave=()=>gsap.to(c,{y:0,scale:1,duration:.25});
@@ -83,4 +83,23 @@ function flip(stage,svg,o,run){
   else gsap.from(l,{opacity:0,duration:.6})});
  prev=now;
 }
-return{SEED,render}})();
+const STATES=['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Andaman and Nicobar Islands','Chandigarh','Dadra and Nagar Haveli and Daman and Diu','Delhi','Jammu and Kashmir','Ladakh','Lakshadweep','Puducherry'];
+const COUNTRIES=['India','Bangladesh','Bhutan','Nepal','Sri Lanka','Pakistan','Myanmar','China','Singapore','Malaysia','Thailand','United Arab Emirates','Saudi Arabia','Qatar','Kuwait','Oman','Bahrain','United Kingdom','Ireland','Germany','France','Netherlands','Italy','Spain','Switzerland','Sweden','Australia','New Zealand','Canada','United States','Japan','South Korea','South Africa'];
+function place(p){if(p.country||p.state||p.district){const a=[p.district,p.state];if(p.country&&p.country!=='India')a.push(p.country);return a.filter(Boolean).join(', ')}return p.place||''}
+function loc(host){
+ const el=(t,a)=>Object.assign(document.createElement(t),a||{});
+ const lab=(txt,...ch)=>{const l=el('label');l.append(txt,...ch);host.appendChild(l);return l};
+ const c=el('select'),co=el('input',{type:'text',placeholder:'Type the country'}),
+  s=el('select'),st=el('input',{type:'text',placeholder:'State or province'}),d=el('input',{type:'text',placeholder:'District (or city)'});
+ c.innerHTML='<option value="">— select country —</option>'+COUNTRIES.map(x=>`<option>${x}</option>`).join('')+'<option value="__o">Other country…</option>';
+ s.innerHTML='<option value="">— select state —</option>'+STATES.map(x=>`<option>${x}</option>`).join('');
+ lab('Country',c,co);const ls=lab('State',s,st);lab('District',d);
+ const upd=()=>{const ind=c.value==='India'||!c.value;co.hidden=c.value!=='__o';s.hidden=!ind;st.hidden=ind;ls.firstChild.textContent=ind?'State or Union Territory':'State or province'};
+ c.onchange=upd;upd();
+ return{
+  get(){let country=c.value==='__o'?co.value.trim():c.value;if(!country&&s.value)country='India';
+   return{country,state:(country==='India'?s.value:st.value).trim(),district:d.value.trim()}},
+  set(v){v=v||{};const k=v.country||'';if(!k)c.value='';else if(COUNTRIES.includes(k))c.value=k;else{c.value='__o';co.value=k}
+   upd();s.value=v.state||'';st.value=v.state||'';d.value=v.district||'';if(!k)co.value=''}}
+}
+return{SEED,render,loc,place}})();
