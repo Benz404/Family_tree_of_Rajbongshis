@@ -23,6 +23,9 @@
 <label>Spouse of<select id="spo"></select></label>
 <label>Photo<input type="file" id="photo" accept="image/*"></label>
 <div class="row"><button id="save">Add person</button><button class="alt" id="cancel">Clear</button><button class="alt" id="del" hidden>Delete</button></div>
+<div id="pbox" hidden class="grp"><div>Add the parents of the selected person</div>
+<label>Father's name<input type="text" id="fa"></label><label>Mother's name<input type="text" id="mo"></label>
+<div class="row"><button class="alt" id="addpar">Add parents</button></div></div>
 <div id="msg"></div>
 <div class="row"><button class="alt" id="rs">Reset to starter family map</button></div>
 </details>
@@ -67,11 +70,11 @@ function edit(id){
  const p=by(id);sel=id;photo=null;fillSel();
  $('name').value=p.name;$('note').value=p.note||'';$('par').value=p.par||'';$('spo').value=p.sp||'';$('photo').value='';
  $('ptitle').textContent='Edit: '+p.name;$('save').textContent='Save changes';$('cancel').textContent='Cancel';$('del').hidden=false;
- $('panel').open=true;$('panel').scrollIntoView({behavior:'smooth'});
+ $('panel').open=true;$('pbox').hidden=false;$('panel').scrollIntoView({behavior:'smooth'});
  stage.querySelectorAll('.card').forEach(c=>c.classList.toggle('sel',c.querySelector('.nm').textContent===p.name))
 }
 function clearForm(){sel=null;photo=null;['name','note','par','spo','photo'].forEach(k=>$(k).value='');
- $('ptitle').textContent='Add a person';$('save').textContent='Add person';$('cancel').textContent='Clear';$('del').hidden=true}
+ $('ptitle').textContent='Add a person';$('save').textContent='Add person';$('cancel').textContent='Clear';$('del').hidden=true;$('pbox').hidden=true}
 function setSp(p,id){
  if(p.sp&&by(p.sp)&&by(p.sp).sp===p.id)delete by(p.sp).sp;delete p.sp;
  if(id&&id!==p.id){const o=by(id);if(o.sp&&by(o.sp))delete by(o.sp).sp;o.sp=p.id;p.sp=id}
@@ -104,7 +107,7 @@ async function loadPending(){
   $('pend').hidden=!l.length;const box=$('plist');box.textContent='';
   l.forEach(e=>{const a=by(e.anchor),d=document.createElement('div');d.className='grp';d.style.borderTop='1px solid var(--line)';d.style.paddingTop='8px';
    const t=document.createElement('div');t.style.color='var(--ink)';t.style.fontSize='18px';
-   t.textContent=e.name+(e.note?' ('+e.note+')':'')+' — '+(e.rel==='child'?'child of ':'husband or wife of ')+(a?a.name:'(person not found)');
+   t.textContent=e.name+(e.note?' ('+e.note+')':'')+' — '+({child:'child of ',spouse:'husband or wife of ',parent:'adding the parent of ',claim:'says they are '}[e.rel]||'')+(a?a.name:'(person not found)');
    const x=document.createElement('div');
    x.textContent=[e.spouse&&'Husband or wife: '+e.spouse,e.children&&e.children.length&&'Children: '+e.children.join(', '),e.contact&&'Contact: '+e.contact].filter(Boolean).join('  •  ');
    const r=document.createElement('div');r.className='row';
@@ -115,14 +118,32 @@ async function loadPending(){
 }
 async function approve(e){
  const a=by(e.anchor);if(!a){msg('That person is no longer on the tree. Reject this entry.');return}
- if(e.rel==='spouse'&&a.sp&&by(a.sp)){msg(a.name+' already has a husband or wife. Reject or fix this entry.');return}
  const uid=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
- const me={id:uid(),name:e.name,note:e.note||''};if(e.photo)me.photo=e.photo;
- if(e.rel==='child')me.par=a.id;else{me.sp=a.id;a.sp=me.id}
- P.push(me);
- if(e.spouse&&e.rel==='child'){const s={id:uid(),name:e.spouse,sp:me.id};me.sp=s.id;P.push(s)}
- (e.children||[]).forEach(n=>P.push({id:uid(),name:n,par:me.id}));
+ const kids=m=>(e.children||[]).forEach(n=>P.push({id:uid(),name:n,par:m.id}));
+ if(e.rel==='claim'){
+  if(e.note)a.note=e.note;if(e.photo)a.photo=e.photo;
+  if(e.spouse&&!(a.sp&&by(a.sp))){const sp={id:uid(),name:e.spouse,sp:a.id};a.sp=sp.id;P.push(sp)}
+  kids(a)
+ }else if(e.rel==='parent'){
+  if(a.par&&by(a.par)){msg(a.name+' already has parents on the tree. Reject or fix this entry.');return}
+  const me={id:uid(),name:e.name,note:e.note||''};if(e.photo)me.photo=e.photo;P.push(me);a.par=me.id;
+  if(e.spouse){const sp={id:uid(),name:e.spouse,sp:me.id};me.sp=sp.id;P.push(sp)}
+ }else{
+  if(e.rel==='spouse'&&a.sp&&by(a.sp)){msg(a.name+' already has a husband or wife. Reject or fix this entry.');return}
+  const me={id:uid(),name:e.name,note:e.note||''};if(e.photo)me.photo=e.photo;
+  if(e.rel==='child')me.par=a.id;else{me.sp=a.id;a.sp=me.id}
+  P.push(me);
+  if(e.spouse&&e.rel==='child'){const sp={id:uid(),name:e.spouse,sp:me.id};me.sp=sp.id;P.push(sp)}
+  kids(me)}
  draw(false);await persist();await api({removePending:e.sid});loadPending()}
+$('addpar').onclick=()=>{const x=by(sel);if(!x)return;const f=$('fa').value.trim(),m=$('mo').value.trim();
+ if(!f&&!m){msg('Enter at least one name.');return}
+ if(x.par&&by(x.par)){msg('This person already has parents. Use "Child of" above to change them.');return}
+ const uid=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+ const F=f?{id:uid(),name:f}:null,M=m?{id:uid(),name:m}:null;
+ if(F&&M){F.sp=M.id;M.sp=F.id}
+ [F,M].forEach(q=>q&&P.push(q));x.par=(F||M).id;
+ $('fa').value='';$('mo').value='';clearForm();draw(false);persist()};
 $('go').onclick=login;$('pw').onkeydown=e=>{if(e.key==='Enter')login()};
 if(pw)login();
 </script></body></html>

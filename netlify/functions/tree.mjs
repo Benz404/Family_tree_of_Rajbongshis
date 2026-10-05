@@ -25,7 +25,7 @@ export default async (req) => {
     const entry = {
       sid: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       at: new Date().toISOString(),
-      rel: s.rel === "spouse" ? "spouse" : "child",
+      rel: ["spouse", "parent", "claim"].includes(s.rel) ? s.rel : "child",
       anchor: str(s.anchor, 40), name: str(s.name, 120), note: str(s.note, 160),
       contact: str(s.contact, 120), spouse: str(s.spouse, 120),
       children: (Array.isArray(s.children) ? s.children : []).slice(0, 15).map((c) => str(c, 120)).filter(Boolean),
