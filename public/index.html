@@ -5,20 +5,20 @@
 <link rel="stylesheet" href="style.css"></head><body>
 <header><h1>Family Heritage</h1><p>Tap a person to open their children. Tap again to fold them away.</p></header>
 <div class="box" id="sbox"><input type="text" id="sq" placeholder="🔍 Search your name to see if you are on the tree" autocomplete="off"><div id="sres"></div></div>
-<div class="bar"><button id="addb">➕ Add my branch</button><button class="alt" id="all">Show everyone</button><button class="alt" id="reset">Start over</button></div>
+<div class="bar"><button id="addb">➕ Add my branch</button><button class="alt" id="wb">🌍 Where we live</button><button class="alt" id="all">Show everyone</button><button class="alt" id="reset">Start over</button></div>
 <div id="wrap"><div id="stage"><svg id="svg"></svg></div></div>
 <div id="info" class="box" hidden></div>
+<div id="where" class="box" hidden></div>
 <div id="add" class="box" hidden>
 <div style="font-size:20px;font-weight:700">Add my branch</div>
 <p class="nt" style="font-size:16px">Your entry appears on the tree after the family admin has checked it.</p>
 <label>What would you like to do?<select id="arel"><option value="child">Add myself as a child of someone</option><option value="spouse">Add myself as a husband or wife of someone</option><option value="parent">Add the parents of someone on the tree</option><option value="claim">This is me, I am already on the tree</option></select></label>
 <label><span id="lanc"></span><select id="aanc"></select></label>
 <label><span id="lname">Your name</span><input type="text" id="aname"></label>
-<label>A short note (optional)<input type="text" id="anote"></label>
+<label><span id="lpl">Where do you live? City and country only (optional)</span><input type="text" id="aplace" placeholder="e.g. Dibrugarh, India"></label>
 <label id="wsp"><span id="lsp">My husband or wife (optional)</span><input type="text" id="aspo"></label>
 <label id="wkids">My children, one name per line (optional)<textarea id="akids" rows="3"></textarea></label>
 <label>Your phone or email, seen only by the admin (optional)<input type="text" id="acon"></label>
-<label>Photo (optional, only if you agree to show it)<input type="file" id="aph" accept="image/*"></label>
 <input type="text" id="aweb" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
 <div class="row"><button id="asend">Send for review</button><button class="alt" id="acancel">Close</button></div><div id="amsg"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -59,6 +59,7 @@ function info(p){
  if(p.photo){const i=document.createElement('img');i.src=p.photo;i.alt='';av.appendChild(i)}else av.textContent=p.name[0].toUpperCase();
  const h=document.createElement('h2');h.textContent=p.name;b.append(av,h);
  if(p.note){const n=document.createElement('div');n.className='nt';n.textContent=p.note;b.appendChild(n)}
+ if(p.place){const n=document.createElement('div');n.className='nt';n.textContent='📍 '+p.place;b.appendChild(n)}
  const par=p.par&&by(p.par),pars=par?[par,par.sp&&by(par.sp)].filter(Boolean):[];
  const sibs=par?P.filter(x=>x.id!==p.id&&x.par&&(x.par===par.id||x.par===par.sp)):[];
  [['Parents',pars],['Spouse',p.sp&&by(p.sp)?[by(p.sp)]:[]],['Children',kids(p)],['Brothers and sisters',sibs]].forEach(([t,l])=>{
@@ -70,12 +71,12 @@ function info(p){
  const me=document.createElement('button');me.className='alt';me.textContent='This is me';me.onclick=()=>openForm('claim',p.id,'');ac.appendChild(me);
  if(!pars.length){const pb=document.createElement('button');pb.className='alt';pb.textContent='Add parents';pb.onclick=()=>openForm('parent',p.id,'');ac.appendChild(pb)}
  b.appendChild(ac)}
-let aphoto=null;
 function fillAnc(){const o=$('aanc');o.innerHTML='';
  [...P].sort((a,b)=>a.name.localeCompare(b.name)).forEach(x=>{const e=document.createElement('option');e.value=x.id;e.textContent=x.name;o.appendChild(e)})}
 function uf(){const r=$('arel').value;
  $('lanc').textContent={child:'You are the child of (already on the tree)',spouse:'You are the husband or wife of (already on the tree)',parent:'You are adding the parent of (already on the tree)',claim:'This is you on the tree'}[r];
  $('lname').textContent=r==='parent'?"Father's or mother's name":'Your name';
+ $('lpl').textContent=r==='parent'?'Where did they live? City and country (optional)':'Where do you live? City and country only (optional)';
  $('lsp').textContent=r==='parent'?"The other parent's name (optional)":'My husband or wife (optional)';
  $('wkids').hidden=r==='parent';$('wsp').hidden=r==='spouse'}
 function openForm(rel,anc,name){fillAnc();$('arel').value=rel||'child';uf();if(anc)$('aanc').value=anc;if(name!=null)$('aname').value=name;
@@ -91,20 +92,27 @@ $('sq').oninput=()=>{const q=$('sq').value.trim().toLowerCase(),box=$('sres');bo
   b.textContent=p.name+(q?' (child of '+q.name+')':'');b.onclick=()=>{box.textContent='';$('sq').value='';reveal(p.id)};c.appendChild(b)});
  box.appendChild(c)};
 $('acancel').onclick=()=>{$('add').hidden=true};
-$('aph').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
- r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=160;
-  const m=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,160,160);
-  aphoto=c.toDataURL('image/jpeg',.8)};im.src=r.result};r.readAsDataURL(f)};
 $('asend').onclick=async()=>{
  const m=$('amsg');if(!$('aname').value.trim()){m.textContent='Please enter your name.';return}
  m.textContent='Sending…';
- try{const r=await fetch('/api/tree',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({submit:{
-  name:$('aname').value,rel:$('arel').value,anchor:$('aanc').value,note:$('anote').value,spouse:$('aspo').value,
-  children:$('akids').value.split('\n'),contact:$('acon').value,photo:aphoto,website:$('aweb').value}})});
+ try{const r=await fetch('/api/tree',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({submit:{place:$('aplace').value,
+  name:$('aname').value,rel:$('arel').value,anchor:$('aanc').value,spouse:$('aspo').value,
+  children:$('akids').value.split('\n'),contact:$('acon').value,website:$('aweb').value}})});
   if(r.ok){m.textContent='Thank you! Your branch will appear after it has been reviewed.';
-   ['aname','anote','aspo','akids','acon','aph'].forEach(k=>$(k).value='');aphoto=null}
+   ['aname','aplace','aspo','akids','acon'].forEach(k=>$(k).value='')}
   else m.textContent=(await r.text())||'Could not send. Please try again.'}
  catch(e){m.textContent='Could not reach the server. Please try again.'}};
+$('wb').onclick=()=>{const b=$('where');if(!b.hidden){b.hidden=true;return}
+ const g={};P.forEach(p=>{const k=(p.place||'').trim();if(!k)return;const key=k.toLowerCase();(g[key]=g[key]||{n:k,l:[]}).l.push(p)});
+ b.textContent='';const t=document.createElement('div');t.style.cssText='font-size:20px;font-weight:700;text-align:center';t.textContent='Where our family lives';b.appendChild(t);
+ const keys=Object.keys(g).sort((x,y)=>g[y].l.length-g[x].l.length);
+ if(!keys.length){const d=document.createElement('div');d.className='grp';d.textContent='No places have been added yet.';b.appendChild(d)}
+ keys.forEach(k=>{const d=document.createElement('div');d.className='grp';d.style.textAlign='center';
+  d.textContent='📍 '+g[k].n+' — '+g[k].l.length+(g[k].l.length>1?' people':' person');
+  const c=document.createElement('div');c.className='chips';
+  g[k].l.forEach(p=>{const x=document.createElement('button');x.className='alt';x.textContent=p.name;x.onclick=()=>reveal(p.id);c.appendChild(x)});
+  b.append(d,c)});
+ b.hidden=false;b.scrollIntoView({behavior:'smooth'})};
 $('all').onclick=()=>{const b=visible();P.forEach(p=>ex.add(p.id));go(b)};
 $('reset').onclick=()=>{ex=new Set();sel=null;$('info').hidden=true;draw(true)};
 fetch('/api/tree').then(r=>r.json()).then(d=>{if(d&&d.people&&d.people.length)P=d.people}).catch(()=>{}).finally(()=>draw(true));

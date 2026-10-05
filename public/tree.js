@@ -55,7 +55,7 @@ function render(stage,svg,P,o={}){
    const av=document.createElement('div');av.className='av';
    if(p.photo){const im=document.createElement('img');im.src=p.photo;im.alt='';av.appendChild(im)}else av.textContent=(p.name||'?')[0].toUpperCase();
    const nm=document.createElement('div');nm.className='nm';nm.textContent=p.name;
-   const nt=document.createElement('div');nt.className='nt';nt.textContent=p.note||'';
+   const nt=document.createElement('div');nt.className='nt';nt.textContent=p.place?'📍 '+p.place:(p.note||'');
    c.append(av,nm,nt);const bt=o.badge&&o.badge(p);if(bt){const e=document.createElement('div');e.className='bd';e.textContent=bt;c.appendChild(e)}
    c.onmouseenter=()=>gsap.to(c,{y:-6,scale:1.05,duration:.25});
    c.onmouseleave=()=>gsap.to(c,{y:0,scale:1,duration:.25});

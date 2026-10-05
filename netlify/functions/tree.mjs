@@ -27,9 +27,8 @@ export default async (req) => {
       at: new Date().toISOString(),
       rel: ["spouse", "parent", "claim"].includes(s.rel) ? s.rel : "child",
       anchor: str(s.anchor, 40), name: str(s.name, 120), note: str(s.note, 160),
-      contact: str(s.contact, 120), spouse: str(s.spouse, 120),
+      contact: str(s.contact, 120), spouse: str(s.spouse, 120), place: str(s.place, 80),
       children: (Array.isArray(s.children) ? s.children : []).slice(0, 15).map((c) => str(c, 120)).filter(Boolean),
-      photo: img(s.photo),
     };
     if (!entry.name || !entry.anchor) return new Response("Name and relation are required", { status: 400 });
     const pending = (await store.get("pending", { type: "json" })) || [];
@@ -56,7 +55,7 @@ export default async (req) => {
   if (!Array.isArray(body.people) || body.people.length > 500) return new Response("Bad data", { status: 400 });
   const people = body.people.map((p) => ({
     id: str(p.id, 40), name: str(p.name, 120), note: str(p.note, 160),
-    par: str(p.par, 40) || undefined, sp: str(p.sp, 40) || undefined, photo: img(p.photo),
+    par: str(p.par, 40) || undefined, sp: str(p.sp, 40) || undefined, photo: img(p.photo), place: str(p.place, 80) || undefined,
   })).filter((p) => p.id && p.name);
   await store.setJSON("tree", { people });
   return Response.json({ ok: true });

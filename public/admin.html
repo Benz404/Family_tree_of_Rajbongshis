@@ -19,6 +19,7 @@
 <details id="panel" class="box"><summary id="ptitle">Add a person</summary>
 <label>Name<input type="text" id="name" placeholder="Full name"></label>
 <label>Note (year, place, role)<input type="text" id="note"></label>
+<label>Place (city, country)<input type="text" id="place"></label>
 <label>Child of<select id="par"></select></label>
 <label>Spouse of<select id="spo"></select></label>
 <label>Photo<input type="file" id="photo" accept="image/*"></label>
@@ -27,7 +28,6 @@
 <label>Father's name<input type="text" id="fa"></label><label>Mother's name<input type="text" id="mo"></label>
 <div class="row"><button class="alt" id="addpar">Add parents</button></div></div>
 <div id="msg"></div>
-<div class="row"><button class="alt" id="rs">Reset to starter family map</button></div>
 </details>
 </div>
 
@@ -68,12 +68,12 @@ function fillSel(){
 }
 function edit(id){
  const p=by(id);sel=id;photo=null;fillSel();
- $('name').value=p.name;$('note').value=p.note||'';$('par').value=p.par||'';$('spo').value=p.sp||'';$('photo').value='';
+ $('name').value=p.name;$('note').value=p.note||'';$('place').value=p.place||'';$('par').value=p.par||'';$('spo').value=p.sp||'';$('photo').value='';
  $('ptitle').textContent='Edit: '+p.name;$('save').textContent='Save changes';$('cancel').textContent='Cancel';$('del').hidden=false;
  $('panel').open=true;$('pbox').hidden=false;$('panel').scrollIntoView({behavior:'smooth'});
  stage.querySelectorAll('.card').forEach(c=>c.classList.toggle('sel',c.querySelector('.nm').textContent===p.name))
 }
-function clearForm(){sel=null;photo=null;['name','note','par','spo','photo'].forEach(k=>$(k).value='');
+function clearForm(){sel=null;photo=null;['name','note','place','par','spo','photo'].forEach(k=>$(k).value='');
  $('ptitle').textContent='Add a person';$('save').textContent='Add person';$('cancel').textContent='Clear';$('del').hidden=true;$('pbox').hidden=true}
 function setSp(p,id){
  if(p.sp&&by(p.sp)&&by(p.sp).sp===p.id)delete by(p.sp).sp;delete p.sp;
@@ -89,7 +89,7 @@ $('save').onclick=()=>{
  let p=sel&&by(sel);const par=$('par').value||null,spo=$('spo').value||null;
  if(!p){p={id:'p'+Date.now().toString(36)};P.push(p)}
  if(par===p.id){msg('A person cannot be their own parent.');return}
- p.name=name;p.note=$('note').value.trim();if(par)p.par=par;else delete p.par;if(photo)p.photo=photo;
+ p.name=name;p.note=$('note').value.trim();{const pl=$('place').value.trim();if(pl)p.place=pl;else delete p.place}if(par)p.par=par;else delete p.par;if(photo)p.photo=photo;
  setSp(p,spo);clearForm();draw(false);persist()};
 $('cancel').onclick=()=>{clearForm();msg('');draw(false)};
 $('del').onclick=()=>{
@@ -97,9 +97,6 @@ $('del').onclick=()=>{
  armDel=false;$('del').textContent='Delete';const id=sel;
  P=P.filter(p=>p.id!==id);P.forEach(p=>{if(p.par===id)delete p.par;if(p.sp===id)delete p.sp});
  clearForm();draw(false);persist()};
-$('rs').onclick=()=>{
- if(!armRs){armRs=true;$('rs').textContent='Tap again to reset everything';setTimeout(()=>{armRs=false;$('rs').textContent='Reset to starter family map'},3000);return}
- armRs=false;$('rs').textContent='Reset to starter family map';P=JSON.parse(JSON.stringify(Tree.SEED));clearForm();draw(true);persist()};
 $('replay').onclick=()=>draw(true);
 $('out').onclick=logout;
 async function loadPending(){
@@ -109,7 +106,7 @@ async function loadPending(){
    const t=document.createElement('div');t.style.color='var(--ink)';t.style.fontSize='18px';
    t.textContent=e.name+(e.note?' ('+e.note+')':'')+' — '+({child:'child of ',spouse:'husband or wife of ',parent:'adding the parent of ',claim:'says they are '}[e.rel]||'')+(a?a.name:'(person not found)');
    const x=document.createElement('div');
-   x.textContent=[e.spouse&&'Husband or wife: '+e.spouse,e.children&&e.children.length&&'Children: '+e.children.join(', '),e.contact&&'Contact: '+e.contact].filter(Boolean).join('  •  ');
+   x.textContent=[e.spouse&&'Husband or wife: '+e.spouse,e.children&&e.children.length&&'Children: '+e.children.join(', '),e.place&&'Lives in: '+e.place,e.contact&&'Contact: '+e.contact].filter(Boolean).join('  •  ');
    const r=document.createElement('div');r.className='row';
    const ok=document.createElement('button');ok.textContent='Approve';ok.onclick=()=>approve(e);
    const no=document.createElement('button');no.className='alt';no.textContent='Reject';no.onclick=async()=>{await api({removePending:e.sid});loadPending()};
@@ -121,16 +118,16 @@ async function approve(e){
  const uid=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
  const kids=m=>(e.children||[]).forEach(n=>P.push({id:uid(),name:n,par:m.id}));
  if(e.rel==='claim'){
-  if(e.note)a.note=e.note;if(e.photo)a.photo=e.photo;
+  if(e.note)a.note=e.note;if(e.place)a.place=e.place;if(e.photo)a.photo=e.photo;
   if(e.spouse&&!(a.sp&&by(a.sp))){const sp={id:uid(),name:e.spouse,sp:a.id};a.sp=sp.id;P.push(sp)}
   kids(a)
  }else if(e.rel==='parent'){
   if(a.par&&by(a.par)){msg(a.name+' already has parents on the tree. Reject or fix this entry.');return}
-  const me={id:uid(),name:e.name,note:e.note||''};if(e.photo)me.photo=e.photo;P.push(me);a.par=me.id;
+  const me={id:uid(),name:e.name,note:e.note||'',place:e.place||undefined};if(e.photo)me.photo=e.photo;P.push(me);a.par=me.id;
   if(e.spouse){const sp={id:uid(),name:e.spouse,sp:me.id};me.sp=sp.id;P.push(sp)}
  }else{
   if(e.rel==='spouse'&&a.sp&&by(a.sp)){msg(a.name+' already has a husband or wife. Reject or fix this entry.');return}
-  const me={id:uid(),name:e.name,note:e.note||''};if(e.photo)me.photo=e.photo;
+  const me={id:uid(),name:e.name,note:e.note||'',place:e.place||undefined};if(e.photo)me.photo=e.photo;
   if(e.rel==='child')me.par=a.id;else{me.sp=a.id;a.sp=me.id}
   P.push(me);
   if(e.spouse&&e.rel==='child'){const sp={id:uid(),name:e.spouse,sp:me.id};me.sp=sp.id;P.push(sp)}
