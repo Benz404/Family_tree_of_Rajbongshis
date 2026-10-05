@@ -7,7 +7,7 @@ const SEED=[
 {id:'ud',name:'Uday Kumar',par:'h'},{id:'t',name:'Tilak Kumar',par:'h'},
 {id:'bo',name:'Bonajit Rajbongsh',par:'r'},{id:'tr',name:'Tradipta Rajbongsh',par:'r'}];
 const CW=132,CH=156,SG=44,GAP=40,ROWH=250,PX=60,PY=40;
-let tl=null;
+let tl=null,prev={};
 
 function layout(P){
  const by=id=>P.find(p=>p.id===id);
@@ -45,18 +45,18 @@ function render(stage,svg,P,o={}){
  stage.querySelectorAll('.card').forEach(e=>e.remove());
  let s='';
  L.U.forEach(u=>{
-  if(u.m.length>1){const x1=mx(u,0)+CW/2,y=u.y+CH/2;s+=`<line class="ln sp" data-g="${u.g}" x1="${x1}" y1="${y}" x2="${x1+SG}" y2="${y}"/>`}
+  if(u.m.length>1){const x1=mx(u,0)+CW/2,y=u.y+CH/2;s+=`<line class="ln sp" data-g="${u.g}" data-c="${u.m[1].id}" x1="${x1}" y1="${y}" x2="${x1+SG}" y2="${y}"/>`}
   u.m.forEach((p,i)=>{
    const cx=mx(u,i),pu=p.par&&L.uo[p.par];
    if(pu){const sx=pu.x,sy=pu.m.length>1?pu.y+CH/2:pu.y+CH,ey=u.y,my=(sy+ey)/2;
-    s+=`<path class="ln" data-g="${pu.g}" d="M${sx} ${sy}C${sx} ${my} ${cx} ${my} ${cx} ${ey}"/>`}
-   const c=document.createElement('div');c.className='card'+(o.onClick?' edit':'')+(p.id===o.sel?' sel':'');c.dataset.g=u.g;
+    s+=`<path class="ln" data-g="${pu.g}" data-c="${p.id}" d="M${sx} ${sy}C${sx} ${my} ${cx} ${my} ${cx} ${ey}"/>`}
+   const c=document.createElement('div');c.className='card'+(o.onClick?' edit':'')+(p.id===o.sel?' sel':'');c.dataset.g=u.g;c.dataset.id=p.id;
    c.style.cssText=`left:${cx-CW/2}px;top:${u.y}px;width:${CW}px;height:${CH}px`;
    const av=document.createElement('div');av.className='av';
    if(p.photo){const im=document.createElement('img');im.src=p.photo;im.alt='';av.appendChild(im)}else av.textContent=(p.name||'?')[0].toUpperCase();
    const nm=document.createElement('div');nm.className='nm';nm.textContent=p.name;
    const nt=document.createElement('div');nt.className='nt';nt.textContent=p.note||'';
-   c.append(av,nm,nt);
+   c.append(av,nm,nt);const bt=o.badge&&o.badge(p);if(bt){const e=document.createElement('div');e.className='bd';e.textContent=bt;c.appendChild(e)}
    c.onmouseenter=()=>gsap.to(c,{y:-6,scale:1.05,duration:.25});
    c.onmouseleave=()=>gsap.to(c,{y:0,scale:1,duration:.25});
    if(o.onClick)c.onclick=()=>o.onClick(p.id);
@@ -70,5 +70,17 @@ function render(stage,svg,P,o={}){
   for(let g=0;g<=L.G;g++){
    tl.fromTo(stage.querySelectorAll(`.card[data-g="${g}"]`),{autoAlpha:0,y:36,scale:.85},{autoAlpha:1,y:0,scale:1,duration:.7,stagger:.12,ease:'back.out(1.5)'},g*1.3);
    tl.to(svg.querySelectorAll(`.ln[data-g="${g}"]`),{strokeDashoffset:0,duration:1,stagger:.08,ease:'power2.inOut'},g*1.3+.45)}}
+ flip(stage,svg,o,run);
+}
+function flip(stage,svg,o,run){
+ const now={},go=!run&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+ stage.querySelectorAll('.card').forEach(c=>{const id=c.dataset.id,l=parseFloat(c.style.left),t=parseFloat(c.style.top);now[id]=[l,t];
+  if(!go)return;
+  if(o.fresh&&o.fresh.has(id))gsap.from(c,{autoAlpha:0,scale:.7,y:-30,duration:.6,ease:'back.out(1.6)'});
+  else if(prev[id]&&(prev[id][0]!==l||prev[id][1]!==t))gsap.from(c,{x:prev[id][0]-l,y:prev[id][1]-t,duration:.6,ease:'power2.inOut'})});
+ if(go&&o.fresh)svg.querySelectorAll('.ln').forEach(l=>{
+  if(o.fresh.has(l.dataset.c)){const n=l.getTotalLength();gsap.fromTo(l,{strokeDasharray:n,strokeDashoffset:n},{strokeDashoffset:0,duration:.9,delay:.35,ease:'power2.inOut'})}
+  else gsap.from(l,{opacity:0,duration:.6})});
+ prev=now;
 }
 return{SEED,render}})();

@@ -26,3 +26,11 @@ label{display:block;margin-top:8px;font-size:16px;color:var(--mut)}
 input[type=text],input[type=password],select{width:100%;font:inherit;font-size:18px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 #msg{color:var(--acc);font-size:16px;margin-top:6px;min-height:20px}
+.card{cursor:default}.card.edit{cursor:pointer}
+.bd{position:absolute;left:50%;bottom:-11px;transform:translateX(-50%);background:var(--acc);color:var(--card);font-size:15px;font-weight:700;border-radius:12px;padding:0 9px;line-height:22px}
+#info{text-align:center}
+#info .av{width:84px;height:84px}
+#info h2{margin:4px 0 2px;font-size:26px}
+.grp{margin-top:8px;font-size:16px;color:var(--mut)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.chips button{font-size:15px;padding:3px 10px}
