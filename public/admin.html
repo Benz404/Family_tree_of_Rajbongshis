@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Heritage Tree Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head><body>
+<header><h1>Heritage Tree Admin</h1><p>Tap a card to edit it. Every change is saved to the site.</p></header>
+
+<div id="login" class="box" style="margin-top:30px">
+<div style="font-size:20px;font-weight:700">Admin login</div>
+<label>Password<input type="password" id="pw" autocomplete="current-password"></label>
+<div class="row"><button id="go">Log in</button></div><div id="lmsg" style="color:var(--acc);margin-top:6px"></div>
+</div>
+
+<div id="app" hidden>
+<div class="bar"><button id="replay">▶ Replay</button><a href="index.html"><button class="alt" type="button">Open display page</button></a><button class="alt" id="out">Log out</button></div>
+<div id="wrap"><div id="stage"><svg id="svg"></svg></div></div>
+<details id="panel" class="box"><summary id="ptitle">Add a person</summary>
+<label>Name<input type="text" id="name" placeholder="Full name"></label>
+<label>Note (year, place, role)<input type="text" id="note"></label>
+<label>Child of<select id="par"></select></label>
+<label>Spouse of<select id="spo"></select></label>
+<label>Photo<input type="file" id="photo" accept="image/*"></label>
+<div class="row"><button id="save">Add person</button><button class="alt" id="cancel">Clear</button><button class="alt" id="del" hidden>Delete</button></div>
+<div id="msg"></div>
+<div class="row"><button class="alt" id="rs">Reset to starter family map</button></div>
+</details>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="tree.js"></script>
+<script>
+const $=id=>document.getElementById(id),stage=$('stage'),svg=$('svg');
+let pw='',P=[],sel=null,photo=null,armDel=false,armRs=false;
+try{pw=sessionStorage.getItem('hpw')||''}catch(e){}
+const by=id=>P.find(p=>p.id===id);
+const api=body=>fetch('/api/tree',{method:'POST',headers:{'Content-Type':'application/json','x-admin-password':pw},body:JSON.stringify(body)});
+const msg=t=>$('msg').textContent=t;
+
+async function login(){
+ pw=$('pw').value||pw;$('lmsg').textContent='Checking…';
+ try{const r=await api({check:true});
+  if(r.ok){try{sessionStorage.setItem('hpw',pw)}catch(e){}start();return}
+  $('lmsg').textContent=r.status===401?'Wrong password.':'Server error ('+r.status+').'}
+ catch(e){$('lmsg').textContent='Could not reach the server. Is the site deployed on Netlify with the function?'}
+}
+async function start(){
+ $('login').hidden=true;$('app').hidden=false;
+ try{const d=await (await fetch('/api/tree')).json();P=d.people&&d.people.length?d.people:JSON.parse(JSON.stringify(Tree.SEED))}
+ catch(e){P=JSON.parse(JSON.stringify(Tree.SEED))}
+ draw(true);
+}
+function draw(a){fillSel();Tree.render(stage,svg,P,{anim:a,sel,onClick:edit})}
+async function persist(){
+ msg('Saving…');
+ try{const r=await api({people:P});
+  if(r.ok)msg('Saved ✓');else if(r.status===401){msg('Session expired. Please log in again.');logout()}else msg('Save failed ('+r.status+')')}
+ catch(e){msg('Could not reach the server.')}
+}
+function logout(){try{sessionStorage.removeItem('hpw')}catch(e){}pw='';$('app').hidden=true;$('login').hidden=false;$('pw').value=''}
+function fillSel(){
+ const o='<option value="">— none —</option>'+P.map(p=>`<option value="${p.id}"></option>`).join('');
+ ['par','spo'].forEach(k=>{const e=$(k),v=e.value;e.innerHTML=o;[...e.options].slice(1).forEach((op,i)=>op.textContent=P[i].name);e.value=v})
+}
+function edit(id){
+ const p=by(id);sel=id;photo=null;fillSel();
+ $('name').value=p.name;$('note').value=p.note||'';$('par').value=p.par||'';$('spo').value=p.sp||'';$('photo').value='';
+ $('ptitle').textContent='Edit: '+p.name;$('save').textContent='Save changes';$('cancel').textContent='Cancel';$('del').hidden=false;
+ $('panel').open=true;$('panel').scrollIntoView({behavior:'smooth'});
+ stage.querySelectorAll('.card').forEach(c=>c.classList.toggle('sel',c.querySelector('.nm').textContent===p.name))
+}
+function clearForm(){sel=null;photo=null;['name','note','par','spo','photo'].forEach(k=>$(k).value='');
+ $('ptitle').textContent='Add a person';$('save').textContent='Add person';$('cancel').textContent='Clear';$('del').hidden=true}
+function setSp(p,id){
+ if(p.sp&&by(p.sp)&&by(p.sp).sp===p.id)delete by(p.sp).sp;delete p.sp;
+ if(id&&id!==p.id){const o=by(id);if(o.sp&&by(o.sp))delete by(o.sp).sp;o.sp=p.id;p.sp=id}
+}
+$('photo').onchange=e=>{
+ const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=160;
+  const m=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,160,160);
+  photo=c.toDataURL('image/jpeg',.8);msg('Photo ready')};im.src=r.result};r.readAsDataURL(f)};
+$('save').onclick=()=>{
+ const name=$('name').value.trim();if(!name){msg('Please enter a name.');return}
+ let p=sel&&by(sel);const par=$('par').value||null,spo=$('spo').value||null;
+ if(!p){p={id:'p'+Date.now().toString(36)};P.push(p)}
+ if(par===p.id){msg('A person cannot be their own parent.');return}
+ p.name=name;p.note=$('note').value.trim();if(par)p.par=par;else delete p.par;if(photo)p.photo=photo;
+ setSp(p,spo);clearForm();draw(false);persist()};
+$('cancel').onclick=()=>{clearForm();msg('');draw(false)};
+$('del').onclick=()=>{
+ if(!armDel){armDel=true;$('del').textContent='Tap again to delete';setTimeout(()=>{armDel=false;$('del').textContent='Delete'},3000);return}
+ armDel=false;$('del').textContent='Delete';const id=sel;
+ P=P.filter(p=>p.id!==id);P.forEach(p=>{if(p.par===id)delete p.par;if(p.sp===id)delete p.sp});
+ clearForm();draw(false);persist()};
+$('rs').onclick=()=>{
+ if(!armRs){armRs=true;$('rs').textContent='Tap again to reset everything';setTimeout(()=>{armRs=false;$('rs').textContent='Reset to starter family map'},3000);return}
+ armRs=false;$('rs').textContent='Reset to starter family map';P=JSON.parse(JSON.stringify(Tree.SEED));clearForm();draw(true);persist()};
+$('replay').onclick=()=>draw(true);
+$('out').onclick=logout;
+$('go').onclick=login;$('pw').onkeydown=e=>{if(e.key==='Enter')login()};
+if(pw)login();
+</script></body></html>
